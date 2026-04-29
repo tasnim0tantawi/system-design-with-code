@@ -1,4 +1,4 @@
-# URL Shortener (TinyURL / bit.ly clone) -- System Design
+# URL Shortener (TinyURL / bit.ly) System Design
 
 Design and implement a URL shortener service like TinyURL or bit.ly. The service should provide an API to shorten long URLs into short codes, redirect users from short codes to the original long URLs, and track analytics on URL usage.
 
@@ -57,7 +57,6 @@ Clarifying questions to ask in an interview:
 9. SLAs -- p99 latency for redirect? Read/write availability targets?
 10. Do we need to support deletion / reporting / abuse takedown?
 11. Geographic distribution -- single region or multi-region active-active?
-12. What's the data retention policy for analytics events?
 
 ---
 
@@ -94,8 +93,7 @@ Clarifying questions to ask in an interview:
 1. **Short code length 6**, alphabet of 62 chars (`0-9 a-z A-Z`) → 62⁶ ≈ 56.8 billion combinations. At 50 URLs/s that's ~36 thousand years of headroom; length 7 gives 3.5 trillion.
 2. **Storage budget**: 4.3 M URLs/day × ~500 B = ~2 GB/day URL state. Click events ~100 B × 86 M = ~8 GB/day. Over 1 year: ~750 GB URL mappings + ~3 TB click events.
 3. **Range allocator**: 1 000 IDs per fetch → DB write rate from token allocation is ~50/1000 = 0.05 writes/s, effectively zero.
-4. **Kafka delivery semantics**: at-least-once. The consumer must be idempotent (use upsert + counter operations).
-5. **Single short code per long URL is NOT a constraint**: we explicitly accept duplicates (matches bit.ly).
+4. **Single short code per long URL is NOT a constraint**: we explicitly accept duplicates.
 
 ---
 
@@ -103,16 +101,15 @@ Clarifying questions to ask in an interview:
 
 ### 5.1. Phase 1: Simple Scale Design
 
-A single instance proof-of-concept that handles modest load (e.g. ~10 shortens/sec, ~100 redirects/sec). Uses one PostgreSQL row as a counter, Redis as a hot cache, and synchronous in-process click logging.
+A single instance proof-of-concept that handles modest load. Uses one SQL DB row as a counter, Redis as a hot cache, and synchronous in-process click logging.
 
 #### 5.1.1. Design Decisions
 
-- **Single Spring Boot service** owns shorten, redirect, and stats endpoints.
+- **Single monolithic service** owns shorten, redirect, and stats endpoints.
 - **One PostgreSQL row as a counter**: every shorten does `UPDATE token_range SET next_value = next_value + 1 RETURNING next_value`. Cheap at this scale; one DB write per shorten.
 - **Base62 encode the counter** to a 6-char short code.
 - **Redis cache** for `url:{shortCode} -> longUrl`, 60-min TTL, cache-aside on the redirect path.
 - **Click events**: log directly to a `click_events` table in PostgreSQL inside the redirect handler. Synchronous, simple, and good enough for this load.
-- **No Kafka, no Cassandra, no horizontal scaling.** Adding them prematurely is over-engineering for Phase 1.
 
 ### 5.1.2. Diagram
 
@@ -125,7 +122,7 @@ flowchart LR
     Stats[StatsController]
   end
   PG[(PostgreSQL<br/>url_mapping<br/>token_range<br/>click_events)]
-  Redis[(Redis<br/>url:{code} -> longUrl<br/>TTL 60m)]
+  Redis[(Redis<br/>-> longUrl<br/>TTL 60m)]
 
   Shorten --> PG
   Shorten --> Redis
@@ -193,7 +190,7 @@ flowchart TB
     Consumer[ClickEventConsumer]
   end
   PG[(PostgreSQL<br/>url_mapping<br/>token_range<br/>Liquibase)]
-  Redis[(Redis<br/>url:{code} -> longUrl<br/>TTL 60m)]
+  Redis[(Redis<br/> -> longUrl<br/>TTL 60m)]
   Kafka{{Kafka<br/>click-events}}
   Cass[(Cassandra<br/>click_events<br/>click_counts)]
 
