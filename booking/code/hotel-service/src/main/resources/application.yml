@@ -1,0 +1,36 @@
+spring:
+  main:
+    web-application-type: reactive
+  application:
+    name: hotel-service
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5432/hotels
+    username: booking
+    password: booking
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    url: jdbc:postgresql://localhost:5432/hotels
+    user: booking
+    password: booking
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+server:
+  port: 8082
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+external:
+  mocks:
+    enabled: true

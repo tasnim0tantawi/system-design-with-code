@@ -1,0 +1,45 @@
+spring:
+  main:
+    web-application-type: reactive
+  application:
+    name: url-shortener
+  r2dbc:
+    url: r2dbc:postgresql://localhost:5433/shortener
+    username: shortener
+    password: shortener
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    url: jdbc:postgresql://localhost:5433/shortener
+    user: shortener
+    password: shortener
+  data:
+    redis:
+      host: localhost
+      port: 6380
+  cassandra:
+    contact-points: localhost
+    port: 9043
+    local-datacenter: datacenter1
+    schema-action: create-if-not-exists
+  kafka:
+    bootstrap-servers: localhost:9093
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+server:
+  port: 8090
+
+shortener:
+  base-url: ${SHORTENER_BASE_URL:http://localhost:8090}
+  default-ttl-hours: 8760   # 1 year
+
+tokens:
+  batch-size: 1000          # how many IDs to grab from PostgreSQL per allocator refresh
+  start-offset: 1000        # avoid the trivial "0", "1", "2" short codes
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs

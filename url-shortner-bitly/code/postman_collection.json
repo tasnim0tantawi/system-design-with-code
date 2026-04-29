@@ -1,0 +1,160 @@
+{
+  "info": {
+    "name": "URL Shortener (TinyURL clone)",
+    "description": "All HTTP endpoints exposed by the URL shortener service.\n\n**Quick start**:\n1. `Run` the `Shorten URL` request first. It captures `shortCode` into a collection variable.\n2. Subsequent requests (Redirect, Get info, Stats) reuse `{{shortCode}}` automatically.\n\nNo authentication is required -- this service is anonymous-shortening only.\n\nDefault `base_url` is `http://localhost:8090` (the port mapped in `docker-compose.yml`).\n\nEndpoints:\n- POST /api/urls                     -- create a short URL\n- GET  /{shortCode}                  -- 302 redirect (root path, NOT /api)\n- GET  /api/urls/{shortCode}         -- metadata\n- GET  /api/urls/{shortCode}/stats   -- aggregated click stats\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url",  "value": "http://localhost:8090", "type": "string" },
+    { "key": "shortCode", "value": "",                     "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Shorten URL",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/api/urls",
+          "host": ["{{base_url}}"],
+          "path": ["api", "urls"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"longUrl\": \"https://www.codekarle.com/system-design/TinyUrl-system-design.html\",\n  \"ttlHours\": 8760\n}"
+        },
+        "description": "Body fields:\n- `longUrl` (required): the full URL to shorten. Must start with `http://` or `https://`.\n- `ttlHours` (optional): how long this short URL stays valid. Defaults to 8760 (1 year)."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('returns 201 with a short code', () => {",
+              "  pm.expect([200, 201]).to.include(pm.response.code);",
+              "  const j = pm.response.json();",
+              "  pm.expect(j.shortCode).to.be.a('string');",
+              "  pm.expect(j.shortUrl).to.be.a('string');",
+              "  pm.expect(j.longUrl).to.be.a('string');",
+              "  pm.collectionVariables.set('shortCode', j.shortCode);",
+              "  console.log('captured shortCode =', j.shortCode);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Redirect (302 to original URL)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/{{shortCode}}",
+          "host": ["{{base_url}}"],
+          "path": ["{{shortCode}}"]
+        },
+        "description": "Public redirect. Returns HTTP 302 with the original URL in `Location`. Postman follows redirects by default -- toggle 'Automatically follow redirects' OFF in Settings to inspect the 302 response itself.\n\nEvery redirect fires a click event into Kafka (fire-and-forget). Errors in the analytics pipeline never affect this response."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('redirects (302) or follows to 200', () => {",
+              "  pm.expect([200, 302]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Get URL info (metadata)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/api/urls/{{shortCode}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "urls", "{{shortCode}}"]
+        },
+        "description": "Returns `{ shortCode, longUrl, createdAt, expiresAt, creatorIp }`. Useful for inspecting a code without consuming a click event.\n\n404 if the code doesn't exist."
+      }
+    },
+    {
+      "name": "Get click stats",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/api/urls/{{shortCode}}/stats",
+          "host": ["{{base_url}}"],
+          "path": ["api", "urls", "{{shortCode}}", "stats"]
+        },
+        "description": "Reads the Cassandra `click_counts` counter table.\n\nResponse shape:\n```json\n{\n  \"shortCode\": \"WG\",\n  \"totalClicks\": 8,\n  \"dailyCounts\": [\n    { \"day\": \"2026-04-29\", \"count\": 8 }\n  ]\n}\n```\n\nNote: there's a small delay between the redirect happening and the count appearing here -- the click event flows redirect -> Kafka -> consumer -> Cassandra. Wait ~1-2s after a click before checking stats."
+      }
+    },
+    {
+      "name": "Validation: missing longUrl (expect 400)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/api/urls",
+          "host": ["{{base_url}}"],
+          "path": ["api", "urls"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        },
+        "description": "Demonstrates the Jakarta Validation + ProblemDetail integration. Empty body -> 400 with `application/problem+json` body listing the failing field."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('returns 400 ProblemDetail on missing longUrl', () => {",
+              "  pm.response.to.have.status(400);",
+              "  const j = pm.response.json();",
+              "  pm.expect(j.code).to.eql('VALIDATION_ERROR');",
+              "  pm.expect(j.errors[0].field).to.eql('longUrl');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Validation: bad URL format (expect 400)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": {
+          "raw": "{{base_url}}/api/urls",
+          "host": ["{{base_url}}"],
+          "path": ["api", "urls"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"longUrl\": \"not-a-url\"\n}"
+        },
+        "description": "Demonstrates the @Pattern check on `longUrl` -- only http(s) URLs are accepted."
+      }
+    },
+    {
+      "name": "404: unknown short code",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base_url}}/zzzzzz",
+          "host": ["{{base_url}}"],
+          "path": ["zzzzzz"]
+        },
+        "description": "Demonstrates the 404 path on the redirect endpoint."
+      }
+    }
+  ]
+}

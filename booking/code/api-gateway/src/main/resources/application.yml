@@ -1,0 +1,130 @@
+spring:
+  main:
+    web-application-type: reactive
+  application:
+    name: api-gateway
+  data:
+    redis:
+      host: ${SPRING_REDIS_HOST:localhost}
+      port: 6379
+  cloud:
+    gateway:
+      server:
+        webflux:
+          discovery:
+            locator:
+              enabled: false
+          routes:
+            - id: auth-service
+              uri: lb://auth-service
+              predicates:
+                - Path=/api/auth/**
+            # IMPORTANT: search route must be declared BEFORE /api/hotels/** to win predicate match
+            - id: search-service
+              uri: lb://search-service
+              predicates:
+                - Path=/api/hotels/search/**
+            - id: hotel-bookings
+              uri: lb://booking-service
+              predicates:
+                - Path=/api/hotels/{hotelId}/bookings/**
+            - id: hotel-reviews
+              uri: lb://review-service
+              predicates:
+                - Path=/api/hotels/{hotelId}/reviews/**
+            - id: hotel-service
+              uri: lb://hotel-service
+              predicates:
+                - Path=/api/hotels/**
+            - id: bookings
+              uri: lb://booking-service
+              predicates:
+                - Path=/api/bookings/**
+            - id: user-booking-history
+              uri: lb://booking-service
+              predicates:
+                - Path=/api/users/{userId}/booking-history
+            - id: user-bookings
+              uri: lb://booking-service
+              predicates:
+                - Path=/api/users/{userId}/bookings/**
+            - id: user-reviews
+              uri: lb://review-service
+              predicates:
+                - Path=/api/users/{userId}/reviews/**
+            - id: user-notifications
+              uri: lb://notification-service
+              predicates:
+                - Path=/api/users/{userId}/notifications/**
+            - id: reviews
+              uri: lb://review-service
+              predicates:
+                - Path=/api/reviews/**
+            # OpenAPI docs routes — proxy each service's /v3/api-docs to /v3/api-docs/<service>
+            - id: docs-auth
+              uri: lb://auth-service
+              predicates:
+                - Path=/v3/api-docs/auth
+              filters:
+                - RewritePath=/v3/api-docs/auth, /v3/api-docs
+            - id: docs-hotel
+              uri: lb://hotel-service
+              predicates:
+                - Path=/v3/api-docs/hotel
+              filters:
+                - RewritePath=/v3/api-docs/hotel, /v3/api-docs
+            - id: docs-booking
+              uri: lb://booking-service
+              predicates:
+                - Path=/v3/api-docs/booking
+              filters:
+                - RewritePath=/v3/api-docs/booking, /v3/api-docs
+            - id: docs-search
+              uri: lb://search-service
+              predicates:
+                - Path=/v3/api-docs/search
+              filters:
+                - RewritePath=/v3/api-docs/search, /v3/api-docs
+            - id: docs-review
+              uri: lb://review-service
+              predicates:
+                - Path=/v3/api-docs/review
+              filters:
+                - RewritePath=/v3/api-docs/review, /v3/api-docs
+            - id: docs-notification
+              uri: lb://notification-service
+              predicates:
+                - Path=/v3/api-docs/notification
+              filters:
+                - RewritePath=/v3/api-docs/notification, /v3/api-docs
+
+server:
+  port: 8080
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+jwt:
+  secret: ${JWT_SECRET:dev-secret-change-me-please-32bytes-min}
+  ttl-millis: 86400000
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: auth-service
+        url: /v3/api-docs/auth
+      - name: hotel-service
+        url: /v3/api-docs/hotel
+      - name: booking-service
+        url: /v3/api-docs/booking
+      - name: search-service
+        url: /v3/api-docs/search
+      - name: review-service
+        url: /v3/api-docs/review
+      - name: notification-service
+        url: /v3/api-docs/notification
+  api-docs:
+    path: /v3/api-docs/gateway

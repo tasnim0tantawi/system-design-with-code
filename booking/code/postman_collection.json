@@ -1,0 +1,670 @@
+{
+  "info": {
+    "name": "Booking System (POC)",
+    "description": "All HTTP endpoints across the booking microservices, going through the API gateway at {{gateway_url}}.\n\n**Quick start**:\n1. `Run` the `Auth → Login (seeded user)` request first. It captures `accessToken`, `refreshToken`, and `userId` into collection variables.\n2. Then run any other request -- the `Authorization: Bearer {{accessToken}}` header is wired up automatically.\n\nSeeded credentials are in `../code/README.md`.\n\nServices behind the gateway:\n- 8081 auth-service  (5 endpoints)\n- 8082 hotel-service (7 endpoints + 1 internal)\n- 8083 booking-service (6 endpoints)\n- 8084 search-service (1 endpoint)\n- 8085 review-service (5 endpoints)\n- 8086 notification-service (2 endpoints + 1 internal)\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "gateway_url",  "value": "http://localhost:8080", "type": "string" },
+    { "key": "accessToken",  "value": "",                     "type": "string" },
+    { "key": "refreshToken", "value": "",                     "type": "string" },
+    { "key": "userId",       "value": "4",                    "type": "string" },
+    { "key": "managerToken", "value": "",                     "type": "string" },
+    { "key": "hotelId",      "value": "1",                    "type": "string" },
+    { "key": "roomId",       "value": "1",                    "type": "string" },
+    { "key": "bookingId",    "value": "1",                    "type": "string" },
+    { "key": "reviewId",     "value": "1",                    "type": "string" },
+    { "key": "notifId",      "value": "1",                    "type": "string" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{accessToken}}", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Register, login, refresh, logout. The login + refresh requests run a test script that captures `accessToken`, `refreshToken`, and `userId` into collection variables.",
+      "item": [
+        {
+          "name": "Register USER",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{gateway_url}}/api/auth/register/user",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "auth", "register", "user"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"password123\",\n  \"name\": \"Test User\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const j = pm.response.json();",
+                  "  pm.collectionVariables.set('accessToken', j.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', j.refreshToken);",
+                  "  pm.collectionVariables.set('userId', String(j.userId));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register MANAGER",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{gateway_url}}/api/auth/register/manager",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "auth", "register", "manager"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"newmanager@example.com\",\n  \"password\": \"password123\",\n  \"name\": \"New Manager\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const j = pm.response.json();",
+                  "  pm.collectionVariables.set('managerToken', j.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (seeded user: tasnim)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{gateway_url}}/api/auth/login",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"tasnim@guests.com\",\n  \"password\": \"user123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login returns access + refresh tokens', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  const j = pm.response.json();",
+                  "  pm.expect(j.accessToken).to.be.a('string');",
+                  "  pm.expect(j.refreshToken).to.be.a('string');",
+                  "  pm.collectionVariables.set('accessToken', j.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', j.refreshToken);",
+                  "  pm.collectionVariables.set('userId', String(j.userId));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login (seeded manager)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{gateway_url}}/api/auth/login",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"manager1@hotels.com\",\n  \"password\": \"manager123\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const j = pm.response.json();",
+                  "  pm.collectionVariables.set('managerToken', j.accessToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh tokens (rotation)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{gateway_url}}/api/auth/refresh",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "auth", "refresh"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const j = pm.response.json();",
+                  "  pm.collectionVariables.set('accessToken', j.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', j.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Logout (revoke access + refresh)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{gateway_url}}/api/auth/logout",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "auth", "logout"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Hotels (public + manager)",
+      "description": "GET requests under /api/hotels are public (no auth needed). Writes (POST/PUT) require a MANAGER token.",
+      "item": [
+        {
+          "name": "List hotels (cursor-paginated, public)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{gateway_url}}/api/hotels?limit=10",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "hotels"],
+              "query": [
+                { "key": "limit",  "value": "10" },
+                { "key": "cursor", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get hotel by ID (public)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{gateway_url}}/api/hotels/{{hotelId}}",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "hotels", "{{hotelId}}"]
+            }
+          }
+        },
+        {
+          "name": "Check availability (public)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{gateway_url}}/api/hotels/{{hotelId}}/availability?check_in=2026-09-01&check_out=2026-09-04",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "hotels", "{{hotelId}}", "availability"],
+              "query": [
+                { "key": "check_in",  "value": "2026-09-01" },
+                { "key": "check_out", "value": "2026-09-04" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create hotel (MANAGER)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{managerToken}}", "type": "string" }]
+            },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{gateway_url}}/api/hotels",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "hotels"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test Hotel\",\n  \"description\": \"Created from Postman collection\",\n  \"location\": \"Lisbon\",\n  \"stars\": 4,\n  \"type\": \"boutique\",\n  \"businessCredentials\": \"BIZ-1\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const j = pm.response.json();",
+                  "  pm.collectionVariables.set('hotelId', String(j.id));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update hotel (MANAGER, owner)",
+          "request": {
+            "method": "PUT",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{managerToken}}", "type": "string" }]
+            },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{gateway_url}}/api/hotels/{{hotelId}}",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "hotels", "{{hotelId}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman Test Hotel (updated)\",\n  \"description\": \"Edited via PUT\",\n  \"location\": \"Lisbon\",\n  \"stars\": 5,\n  \"type\": \"boutique\",\n  \"businessCredentials\": \"BIZ-1\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Add room to hotel (MANAGER)",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [{ "key": "token", "value": "{{managerToken}}", "type": "string" }]
+            },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{gateway_url}}/api/hotels/{{hotelId}}/rooms",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "hotels", "{{hotelId}}", "rooms"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomType\": \"double\",\n  \"basePrice\": 120.00,\n  \"totalCount\": 5\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const j = pm.response.json();",
+                  "  pm.collectionVariables.set('roomId', String(j.id));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get hotel-image presigned upload URL",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{gateway_url}}/api/hotels/images/presign",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "hotels", "images", "presign"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contentType\": \"image/jpeg\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Search",
+      "item": [
+        {
+          "name": "Search hotels (public, MeiliSearch-backed)",
+          "request": {
+            "method": "GET",
+            "auth": { "type": "noauth" },
+            "url": {
+              "raw": "{{gateway_url}}/api/hotels/search?location=Rome&room_type=luxury",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "hotels", "search"],
+              "query": [
+                { "key": "location",  "value": "Rome" },
+                { "key": "check_in",  "value": "", "disabled": true },
+                { "key": "check_out", "value": "", "disabled": true },
+                { "key": "min_price", "value": "", "disabled": true },
+                { "key": "max_price", "value": "", "disabled": true },
+                { "key": "room_type", "value": "luxury" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bookings",
+      "item": [
+        {
+          "name": "Create booking",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{gateway_url}}/api/hotels/{{hotelId}}/bookings",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "hotels", "{{hotelId}}", "bookings"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomId\": {{roomId}},\n  \"checkIn\":  \"2026-09-01\",\n  \"checkOut\": \"2026-09-04\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('booking starts as PENDING', () => {",
+                  "  if (pm.response.code < 300) {",
+                  "    const j = pm.response.json();",
+                  "    pm.expect(j.status).to.eql('PENDING');",
+                  "    pm.collectionVariables.set('bookingId', String(j.id));",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Pay for booking (PENDING -> CONFIRMED)",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{gateway_url}}/api/bookings/{{bookingId}}/payment",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "bookings", "{{bookingId}}", "payment"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('payment succeeds and status is CONFIRMED', () => {",
+                  "  if (pm.response.code < 300) {",
+                  "    const j = pm.response.json();",
+                  "    pm.expect(j.success).to.eql(true);",
+                  "    pm.expect(j.status).to.eql('CONFIRMED');",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get booking by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{gateway_url}}/api/bookings/{{bookingId}}",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "bookings", "{{bookingId}}"]
+            }
+          }
+        },
+        {
+          "name": "List my bookings",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{gateway_url}}/api/users/{{userId}}/bookings",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "users", "{{userId}}", "bookings"]
+            }
+          }
+        },
+        {
+          "name": "Cancel booking (CONFIRMED -> CANCELLED + refund)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{gateway_url}}/api/bookings/{{bookingId}}",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "bookings", "{{bookingId}}"]
+            }
+          }
+        },
+        {
+          "name": "Booking history (Cassandra, terminal states only)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{gateway_url}}/api/users/{{userId}}/booking-history",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "users", "{{userId}}", "booking-history"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reviews",
+      "item": [
+        {
+          "name": "Submit review for hotel",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{gateway_url}}/api/hotels/{{hotelId}}/reviews",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "hotels", "{{hotelId}}", "reviews"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bookingId\": {{bookingId}},\n  \"rating\": 5,\n  \"comment\": \"Great stay, would book again!\"\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code < 300) {",
+                  "  const j = pm.response.json();",
+                  "  pm.collectionVariables.set('reviewId', String(j.id));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List reviews for hotel",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{gateway_url}}/api/hotels/{{hotelId}}/reviews",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "hotels", "{{hotelId}}", "reviews"]
+            }
+          }
+        },
+        {
+          "name": "Rating summary for hotel",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{gateway_url}}/api/hotels/{{hotelId}}/reviews/summary",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "hotels", "{{hotelId}}", "reviews", "summary"]
+            }
+          }
+        },
+        {
+          "name": "Delete own review",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{gateway_url}}/api/reviews/{{reviewId}}",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "reviews", "{{reviewId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get review-image presigned upload URL",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "{{gateway_url}}/api/reviews/images/presign",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "reviews", "images", "presign"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"contentType\": \"image/jpeg\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List notifications for current user",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{gateway_url}}/api/users/{{userId}}/notifications",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "users", "{{userId}}", "notifications"]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const list = pm.response.json().items || [];",
+                  "  if (list.length > 0) pm.collectionVariables.set('notifId', String(list[0].id));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mark notification as read",
+          "request": {
+            "method": "POST",
+            "url": {
+              "raw": "{{gateway_url}}/api/users/{{userId}}/notifications/{{notifId}}/read",
+              "host": ["{{gateway_url}}"],
+              "path": ["api", "users", "{{userId}}", "notifications", "{{notifId}}", "read"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Internal (service-to-service, NOT exposed via gateway)",
+      "description": "These endpoints are reachable only by other services on the Docker network (port 8082 / 8086 directly), NOT through the API gateway. They're documented here for completeness; the requests below hit the service ports directly via localhost.",
+      "item": [
+        {
+          "name": "Decrement room availability (called by booking-service)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "http://localhost:8082/internal/availability/decrement",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8082",
+              "path": ["internal", "availability", "decrement"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomId\": {{roomId}},\n  \"checkIn\":  \"2026-09-01\",\n  \"checkOut\": \"2026-09-04\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Create notification (legacy internal hook)",
+          "request": {
+            "method": "POST",
+            "auth": { "type": "noauth" },
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": {
+              "raw": "http://localhost:8086/internal/notifications",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8086",
+              "path": ["internal", "notifications"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{userId}},\n  \"type\": \"system_message\",\n  \"message\": \"Hello from Postman\"\n}"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
