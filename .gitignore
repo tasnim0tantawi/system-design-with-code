@@ -30,3 +30,4 @@ cassandra/data/
 # Secrets
 .env
 *.env.local
+*.pdf
