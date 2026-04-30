@@ -227,13 +227,13 @@ erDiagram
     }
     ROOM_TYPE {
         int id PK
-        enum name { single, double, suite }
+        enum name 
     }
 
     DYNAMIC_PRICING_RULE {
         int id PK
-        enum rule_type { occupancy, seasonality, special_event }
-        enum change_type { percentage, fixed_amount }
+        enum rule_type "occupancy, seasonality, special_event"
+        enum change_type "percentage, fixed_amount"
         decimal change_value
         int occupancy_threshold
         date start_date
@@ -253,7 +253,7 @@ erDiagram
         int room_id FK
         date check_in
         date check_out
-        ENUM status { pending, confirmed, cancelled, completed }
+        ENUM status "pending, confirmed, canceled, completed"
         decimal total_price
         timestamp created_at
     }
@@ -522,8 +522,8 @@ erDiagram
     }
 
     HOTEL_AMENITY {
-        int hotel_id PK_FK
-        int amenity_id PK_FK
+        int hotel_id PK,FK
+        int amenity_id PK,FK
     }
 
     HOTEL_IMAGE {
@@ -568,7 +568,7 @@ erDiagram
     }
 
     ROOM_AVAILABILITY {
-        int room_id PK_FK
+        int room_id PK,FK
         date date PK
         int available_count
         timestamp updated_at
@@ -683,7 +683,7 @@ erDiagram
 
     INVOICE {
         int id PK
-        int booking_id FK_UK
+        int booking_id FK,UK
         string invoice_number UK
         decimal amount
         timestamp created_at
@@ -1080,10 +1080,16 @@ Each service owns its own data store and schema. There are no shared tables acro
 4. **Derived data is always rebuildable.** The Search index, review aggregates, and room availability tables can all be reconstructed from authoritative stores — periodic reconciliation jobs correct drift.
 5. **Reactive end-to-end.** Spring Boot 4 + WebFlux with non-blocking drivers (R2DBC, reactive Cassandra, Lettuce, reactive Kafka, `WebClient`) keeps thread usage low under the fan-out pattern that dominates this system.
 
-##### Out of Scope (intentionally)
+##### Out of Scope and Future Considerations
 
 1. Review moderation pipeline.
 2. Search by hotel rating.
 3. Multi-currency pricing (USD only).
 4. Pay-at-hotel (all bookings prepaid).
 5. Multi-region active-active deployment (Phase 3 territory if needed).
+6. Overbooking (selling more rooms than physical inventory to absorb cancellations).
+7. Hotel managers be able to set blackout dates (e.g., maintenance, private events) that block bookings without changing inventory permanently.
+8. Maximum booking lead time.
+9. Authentication: Social login (Google, Apple).
+10. "favorite hotels" or "saved searches" for users + User Profile service.
+
